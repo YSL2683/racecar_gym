@@ -3,6 +3,38 @@ from typing import Dict
 import numpy as np
 
 # ── Policy base class ─────────────────────────────────────────────────────────
+'''
+Policy file contract
+--------------------
+Your policy file must expose a top-level function::
+
+    def make_policy() -> Policy:
+        ...
+
+where Policy is any object with an ``act(observation) -> action`` method.
+
+Example policy file (e.g. my_policy.py):
+
+    import torch
+    from policy.base_policy import Policy
+
+    class PPOPolicy(Policy):
+        def __init__(self):
+            self.model = torch.load('checkpoints/policy.pt')
+            self.model.eval()
+
+        def act(self, obs):
+            import numpy as np
+            lidar = obs['lidar']
+            # ... pre-process, run model, post-process ...
+            return {
+                'motor':    np.array([0.5],  dtype=np.float32),
+                'steering': np.array([-0.1], dtype=np.float32),
+            }
+
+    def make_policy():
+        return PPOPolicy()
+'''
 
 class Policy(ABC):
     """Subclass this and implement ``act()`` to plug in your trained policy."""
