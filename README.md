@@ -68,7 +68,7 @@ Observations are obtained by (possibly noisy) sensors. Parameters for the sensor
 configured in the corresponding vehicle configuration (e.g.  [differential racecar](models/vehicles/racecar/racecar.yml)). 
 In the scenario specification, one can specify which of the available  sensors should be actually used. 
 The observation space is a dictionary where the names of the sensors are the keys 
-which map to the actual measurements. Currently, five sensors are implemented:
+which map to the actual measurements. Currently, five sensor types are implemented:
 pose, velocity, acceleration, LiDAR and RGB Camera. Further, the observation space also includes the current simulation time.
 
 |Key|Space|Defaults|Description|
@@ -76,8 +76,12 @@ pose, velocity, acceleration, LiDAR and RGB Camera. Further, the observation spa
 |pose|`Box(6,)`| |Holds the position (`x`, `y`, `z`) and the orientation (`roll`, `pitch`, `yaw`) in that order.|
 |velocity|`Box(6,)`| |Holds the `x`, `y` and `z` components of the translational and rotational velocity.|
 |acceleration|`Box(6,)`| |Holds the `x`, `y` and `z` components of the translational and rotational acceleration.|
-|lidar|`Box(<scans>,)`|`scans: 1080`|Lidar range scans.|
-|rgb_camera|`Box(<height>, <width>, 3)`|`height: 240, width: 320`|RGB image of the front camera.|
+|lidar|`Box(1080,)`|`range: [0.25, 15.25] m`|Lidar range scans (absolute metres, not normalised).|
+|rgb_camera|`Box(128, 128, 3)`|`128×128, uint8`|Front camera image (128×128). Each pixel in [0, 255].|
+|hd_camera|`Box(240, 320, 3)`|`240×320, uint8`|High-resolution front camera image (240×320). Each pixel in [0, 255].|
+|low_res_camera|`Box(64, 64, 3)`|`64×64, uint8`|Low-resolution front camera image (64×64). Sampled at 100 Hz.|
+
+> **Note:** All three camera sensors share the same mount point on the vehicle and call `pybullet.getCameraImage()` independently. Include only the camera you need — each active camera adds one render call per step.
 
 ### Actions
 The action space for a single agent is a defined by the actuators of the vehicle. 

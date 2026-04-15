@@ -65,10 +65,17 @@ class World(world.World):
                 p.connect(p.GUI)
         else:
             p.connect(p.DIRECT)
+            self._load_egl()
 
         self._load_scene(self._config.sdf)
         p.setTimeStep(self._config.time_step)
         p.setGravity(0, 0, self._config.gravity)
+
+    def _load_egl(self) -> None:
+        import pkgutil
+        egl = pkgutil.get_loader('eglRenderer')
+        if egl is not None:
+            p.loadPlugin(egl.get_filename(), '_eglRendererPlugin')
 
     def reset(self):
         p.setTimeStep(self._config.time_step)
@@ -120,6 +127,24 @@ class World(world.World):
     def update(self):
         p.stepSimulation()
         self._time += self._config.time_step
+        if self._config.rendering:
+            self._follow_camera()
+
+    def _follow_camera(self):
+        # Follow the leading agent (highest rank = rank 1) in the GUI viewport.
+        if not self._agents:
+            return
+        lead = min(self._agents, key=lambda a: self._state.get(a.id, {}).get('rank', 999))
+        position, _ = p.getBasePositionAndOrientation(lead.vehicle_id)
+        _, _, yaw = p.getEulerFromQuaternion(
+            p.getBasePositionAndOrientation(lead.vehicle_id)[1]
+        )
+        p.resetDebugVisualizerCamera(
+            cameraDistance=5.0,
+            cameraYaw=math.degrees(yaw) - 90,
+            cameraPitch=-50,
+            cameraTargetPosition=position,
+        )
 
     def state(self) -> Dict[str, Any]:
         for agent in self._agents:
