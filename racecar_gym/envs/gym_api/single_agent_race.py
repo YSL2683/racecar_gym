@@ -9,10 +9,10 @@ from racecar_gym.envs.scenarios import SingleAgentScenario
 class SingleAgentRaceEnv(gymnasium.Env):
 
     metadata = {
-        'render_modes': ['human', 'rgb_array_follow', 'rgb_array_birds_eye', 'rgb_array_lidar']
+        'render_modes': [None, 'human', 'rgb_array_follow', 'rgb_array_birds_eye', 'rgb_array_lidar']
     }
 
-    def __init__(self, scenario: str, render_mode: str = 'human', render_options: Optional[Dict[str, Any]] = None):
+    def __init__(self, scenario: str, render_mode=None, render_options: Optional[Dict[str, Any]] = None):
         scenario = SingleAgentScenario.from_spec(scenario, rendering=render_mode == 'human')
         self._scenario = scenario
         self._initialized = False

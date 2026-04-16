@@ -15,7 +15,7 @@ Episode semantics:
   Both clients receive the same global done=True at that step.
 
 Usage:
-  python server_client/server.py --scenario scenarios/eval_austria.yml --episodes 2 --render-mode human
+  python server_client/server.py --scenario scenarios/austria_2agents.yml --episodes 2 --render-mode human
 """
 
 import argparse
@@ -214,7 +214,7 @@ def run_server(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Racecar Gym evaluation server')
     parser.add_argument('--scenario', type=str, required=True,
-                        help='Path to scenario YAML (e.g. scenarios/eval_austria.yml)')
+                        help='Path to scenario YAML (e.g. scenarios/austria_2agents.yml)')
     parser.add_argument('--host', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5555)
     parser.add_argument('--episodes', type=int, default=3)

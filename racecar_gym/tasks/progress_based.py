@@ -49,22 +49,6 @@ class MaximizeProgressTask(Task):
     def reset(self):
         self._last_stored_progress = None
 
-
-class MaximizeProgressMaskObstacleTask(MaximizeProgressTask):
-    def __init__(self, laps: int, time_limit: float, terminate_on_collision: bool, delta_progress=0.0,
-                 collision_reward=0, frame_reward=0, progress_reward=100):
-        super().__init__(laps, time_limit, terminate_on_collision, delta_progress, collision_reward, frame_reward,
-                         progress_reward)
-
-    def reward(self, agent_id, state, action) -> float:
-        progress_reward = super().reward(agent_id, state, action)
-        distance_to_obstacle = state[agent_id]['obstacle']
-        if distance_to_obstacle < .3:  # max distance = 1, meaning perfectly centered in the widest point of the track
-            return 0.0
-        else:
-            return progress_reward
-
-
 class MaximizeProgressRegularizeAction(MaximizeProgressTask):
     def __init__(self, laps: int, time_limit: float, terminate_on_collision: bool, delta_progress=0.0,
                  collision_reward=0, frame_reward=0, progress_reward=100, action_reg=0.25):
