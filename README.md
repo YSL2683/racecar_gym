@@ -3,33 +3,8 @@
 ![berlin track](docs/racecar_gym.gif)
 
 A gym environment for a miniature, [F1Tenth](https://f1tenth.org/)-like racecar using the bullet physics engine with pybullet.
-## Installation
 
-> **Warning**
-> We now migrated to *gymnasium*. If you need to use the old gym api, you can either use some of the [compatibility wrappers](https://gymnasium.farama.org/content/gym_compatibility/) of gymnasium
-> or you can use older versions of this gym. The last version supporting the old gym api is tagged as **gym-api**:
->
->`git checkout gym-api; pip install -e .`
-
-You can install ``racecar_gym`` with the following commands:
-
-```shell_script
-git clone https://github.com/axelbr/racecar_gym.git
-cd racecar_gym
-pip install -e .
-```
-
-On the first use of this gym, the tracks are downloaded automatically.
-
-Of course, you can download them manually too. Here is how you can do this from the command line:
-```shell_script
-cd ./models/scenes
-VERSION=v1.0.0
-wget https://github.com/axelbr/racecar_gym/releases/download/tracks-${VERSION}/all.zip
-unzip all.zip
-```
-
-## 설치 안내 (한국어)
+## 설치 안내
 
 구현 및 학습은 로컬 환경에서 직접 진행합니다.  
 Python 3.10 기반의 conda 환경을 생성한 뒤, 아래 순서로 설치하세요.
@@ -61,6 +36,32 @@ pip install -r requirements.txt
 
 > **정책 파일 작성 방법**: `policy/base_policy.py`의 `Policy` 클래스를 상속하여 구현하세요.  
 > 자세한 내용은 파일 내 docstring을 참고하세요.
+
+## Installation
+
+> **Warning**
+> We now migrated to *gymnasium*. If you need to use the old gym api, you can either use some of the [compatibility wrappers](https://gymnasium.farama.org/content/gym_compatibility/) of gymnasium
+> or you can use older versions of this gym. The last version supporting the old gym api is tagged as **gym-api**:
+>
+>`git checkout gym-api; pip install -e .`
+
+You can install ``racecar_gym`` with the following commands:
+
+```shell_script
+git clone https://github.com/axelbr/racecar_gym.git
+cd racecar_gym
+pip install -e .
+```
+
+On the first use of this gym, the tracks are downloaded automatically.
+
+Of course, you can download them manually too. Here is how you can do this from the command line:
+```shell_script
+cd ./models/scenes
+VERSION=v1.0.0
+wget https://github.com/axelbr/racecar_gym/releases/download/tracks-${VERSION}/all.zip
+unzip all.zip
+```
 
 
 ## Environments
