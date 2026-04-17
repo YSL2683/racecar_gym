@@ -25,6 +25,7 @@ import sys
 import os
 import threading
 from typing import Dict
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -37,7 +38,7 @@ from server_client.utils import send_msg, recv_msg
 ACTION_TIMEOUT = 30.0
 # Socket-level read timeout for client connections.
 SOCKET_TIMEOUT = 60.0
-
+TIME_STEP = 0.01
 
 def run_server(
     scenario: str,
@@ -155,6 +156,8 @@ def run_server(
         step = 0
         try:
             while True:
+                start_time = time.time()
+
                 actions = {aid: get_action(aid) for aid in agent_ids}
 
                 obs, rewards, dones, _, state = env.step(actions)
@@ -178,6 +181,9 @@ def run_server(
                     })
 
                 step += 1
+                elapsed_time = time.time() - start_time
+                sleep_time = max(0, TIME_STEP - elapsed_time)
+                time.sleep(sleep_time)
                 if episode_done:
                     break
 
@@ -217,8 +223,8 @@ if __name__ == '__main__':
                         help='Path to scenario YAML (e.g. scenarios/eval_austria.yml)')
     parser.add_argument('--host', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5555)
-    parser.add_argument('--episodes', type=int, default=3)
-    parser.add_argument('--render-mode', type=str, default='rgb_array_follow',
+    parser.add_argument('--episodes', type=int, default=1)
+    parser.add_argument('--render-mode', type=str, default='human',
                         choices=['human', 'rgb_array_follow', 'rgb_array_birds_eye'])
     parser.add_argument('--reset-mode', type=str, default='grid',
                         choices=['grid', 'random', 'random_bidirectional'])
