@@ -22,7 +22,7 @@ from policy.ppo_policy import (
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a shared-policy PPO agent for racecar_gym.')
-    parser.add_argument('--scenario', type=str, default='scenarios/austria_2agents.yml')
+    parser.add_argument('--scenario', type=str, default='scenarios/train_austria.yml')
     parser.add_argument('--total-timesteps', type=int, default=int(5e6))
     parser.add_argument('--rollout-steps', type=int, default=512)
     parser.add_argument('--learning-rate', type=float, default=3e-4)
@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument('--save-interval', type=int, default=10)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--device', type=str, default=None)
+    parser.add_argument('--render-mode', type=str, default='rgb_array_follow', choices=['human', 'rgb_array_follow', 'rgb_array_birds_eye'])
     return parser.parse_args()
 
 
@@ -55,7 +56,7 @@ def main():
     set_seed(args.seed)
     device = torch.device(args.device or ('cuda' if torch.cuda.is_available() else 'cpu'))
 
-    env = MultiAgentRaceEnv(scenario=args.scenario, render_mode=None)
+    env = MultiAgentRaceEnv(scenario=args.scenario, render_mode=args.render_mode)
     env.reset(seed=args.seed, options={'mode': args.reset_mode})
     agent_ids = list(env.scenario.agents.keys())
     if len(agent_ids) != 2:

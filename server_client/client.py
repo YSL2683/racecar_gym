@@ -29,7 +29,8 @@ class RandomPolicy(Policy):
 
     def act(self, observation: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         return {
-            'motor':    np.random.uniform(-1, 1, size=(1,)).astype(np.float32),
+            # 'motor':    np.random.uniform(-1, 1, size=(1,)).astype(np.float32),
+            'motor': np.float32(0.0)    ,  # No throttle for testing; just steering.
             'steering': np.random.uniform(-1, 1, size=(1,)).astype(np.float32),
         }
 

@@ -9,7 +9,7 @@ from policy.ppo_policy import PPOPolicy
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Evaluate a trained PPO policy in racecar_gym.')
-    parser.add_argument('--scenario', type=str, default='scenarios/austria_2agents.yml')
+    parser.add_argument('--scenario', type=str, default='scenarios/eval_austria.yml')
     parser.add_argument('--checkpoint', type=str, default='checkpoints/ppo_shared.pt')
     parser.add_argument('--episodes', type=int, default=5)
     parser.add_argument('--render-mode', type=str, default='human',
