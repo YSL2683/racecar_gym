@@ -29,6 +29,40 @@ wget https://github.com/axelbr/racecar_gym/releases/download/tracks-${VERSION}/a
 unzip all.zip
 ```
 
+## 설치 안내 (한국어)
+
+구현 및 학습은 로컬 환경에서 직접 진행합니다.  
+Python 3.10 기반의 conda 환경을 생성한 뒤, 아래 순서로 설치하세요.
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/YSL2683/racecar_gym.git
+cd racecar_gym
+
+# 2. conda 환경 생성 (Python 3.10)
+conda create -n racecar_gym python=3.10 -y
+conda activate racecar_gym
+
+# 3. racecar_gym 패키지 설치 (핵심 의존성 자동 포함)
+pip install -e .
+
+# 4. 나머지 의존성 설치
+pip install -r requirements.txt
+```
+
+> **참고**: 처음 환경을 실행하면 트랙 데이터가 자동으로 다운로드됩니다.  
+> 수동으로 다운로드하려면 아래 명령을 사용하세요.
+> ```bash
+> cd ./models/scenes
+> VERSION=v1.0.0
+> wget https://github.com/axelbr/racecar_gym/releases/download/tracks-${VERSION}/all.zip
+> unzip all.zip
+> ```
+
+> **정책 파일 작성 방법**: `policy/base_policy.py`의 `Policy` 클래스를 상속하여 구현하세요.  
+> 자세한 내용은 파일 내 docstring을 참고하세요.
+
+
 ## Environments
 
 The observation and action space is a `Dict` holding the agents and their id's. The observation and action space for a single agent 
