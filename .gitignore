@@ -130,5 +130,4 @@ dmypy.json
 ./models/scenes/*
 
 .vscode/
-.github/
 models/scenes

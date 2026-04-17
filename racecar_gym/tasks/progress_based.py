@@ -28,7 +28,8 @@ class MaximizeProgressTask(Task):
         reward = self._frame_reward
         if self._check_collision(agent_state):
             reward += self._collision_reward
-        reward += delta * self._progress_reward
+        if not agent_state['wrong_way']: # only reward progress if the agent is going in the right direction
+            reward += delta * self._progress_reward
         self._last_stored_progress = progress
         return reward
 
