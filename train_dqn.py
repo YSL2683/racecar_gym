@@ -207,6 +207,14 @@ def main():
     )
 
     # Build the DQN model
+    # Device selection: prefer GPU if available
+    try:
+        import torch
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    except Exception:
+        device = "cpu"
+    print(f"[train_dqn] device        : {device}")
+
     model = DQN(
         policy="MlpPolicy",
         env=env,
@@ -220,6 +228,7 @@ def main():
         exploration_final_eps=args.exploration_final_eps,
         verbose=1,
         tensorboard_log=log_path,
+        device=device,
         **({"policy_kwargs": policy_kwargs} if policy_kwargs else {}),
     )
 
