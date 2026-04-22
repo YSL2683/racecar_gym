@@ -28,7 +28,7 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import CheckpointCallback
 
 import racecar_gym.envs.gym_api  # registers gymnasium env IDs
-from policy.dqn_policy import _ACTION_TABLE, _OBS_DIM, _preprocess_obs, _discrete_to_action
+from policy.dqn_mlp_policy import _ACTION_TABLE, _discrete_to_action
 
 
 # ── Wrappers ───────────────────────────────────────────────────────────────────
@@ -44,11 +44,18 @@ class MultiAgentSharedPolicyWrapper(gymnasium.Env):
       by agent A's experience while B implicitly follows the same policy.
     - Episode terminates when ANY agent's done flag becomes True.
 
-    Observation space: flat Box(111,) — lidar(108) + yaw sin/cos(2) + linear_speed(1), normalised to [-1, 1]
-    Action space:      Discrete(6)
+    Observation space: flat Box(obs_dim,), normalised to [-1, 1]
+    Action space:      Discrete(len(_ACTION_TABLE))
     """
 
-    def __init__(self, scenario: str, render_mode: str = 'rgb_array_follow', reset_mode: str = 'grid'):
+    def __init__(
+        self,
+        scenario: str,
+        render_mode: str = 'rgb_array_follow',
+        reset_mode: str = 'grid',
+        preprocess_fn=None,
+        obs_dim: int = None,
+    ):
         super().__init__()
         kwargs = {'scenario': scenario, 'render_mode': render_mode}
         self._env = gymnasium.make("MultiAgentRaceEnv-v0", **kwargs)
@@ -56,19 +63,19 @@ class MultiAgentSharedPolicyWrapper(gymnasium.Env):
         self.observation_space = gymnasium.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(_OBS_DIM,),
+            shape=(obs_dim,),
             dtype=np.float32,
         )
         self._agent_ids = list(self._env.observation_space.spaces.keys())
-        # default reset mode used when reset() is called without options
         self._reset_mode = reset_mode
+        self._preprocess_fn = preprocess_fn
 
     def reset(self, *, seed=None, options=None):
         obs_dict, info_dict = self._env.reset(
-            seed=seed, options=options or {"mode": "grid"}
+            seed=seed, options=options or {"mode": self._reset_mode}
         )
         primary_id = self._agent_ids[0]
-        return _preprocess_obs(obs_dict[primary_id]), info_dict.get(primary_id, {})
+        return self._preprocess_fn(obs_dict[primary_id]), info_dict.get(primary_id, {})
 
     def step(self, action):
         agent_action = _discrete_to_action(action)
@@ -79,7 +86,7 @@ class MultiAgentSharedPolicyWrapper(gymnasium.Env):
         )
 
         primary_id = self._agent_ids[0]
-        obs = _preprocess_obs(obs_dict[primary_id])
+        obs = self._preprocess_fn(obs_dict[primary_id])
         reward = float(reward_dict[primary_id])
 
         # terminated: MultiAgentRaceEnv returns a per-agent dones dict → aggregate with any()
@@ -99,6 +106,12 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train DQN on racecar_gym (shared-policy 2-agent Austria)"
     )
+
+    # ── Policy ──
+    parser.add_argument(
+        "--policy", choices=["mlp", "cnn"], default="mlp",
+        help="Policy type: mlp (MLP + downsampled lidar) or cnn (CNN + full lidar 1080) "
+             "(default: mlp)")
 
     # ── Paths ──
     parser.add_argument(
@@ -155,13 +168,34 @@ def main():
     os.makedirs(log_path, exist_ok=True)
 
     print(f"[train_dqn] scenario      : {args.scenario}")
+    print(f"[train_dqn] policy        : {args.policy}")
     print(f"[train_dqn] total_timesteps: {args.total_timesteps:,}")
     print(f"[train_dqn] run_dir        : {run_dir}")
     print(f"[train_dqn] save_path      : {save_path}")
     print(f"[train_dqn] log_path       : {log_path}")
 
+    # Select preprocessing function and obs_dim based on policy type
+    if args.policy == "mlp":
+        from policy.dqn_mlp_policy import _preprocess_obs, _OBS_DIM
+        preprocess_fn = _preprocess_obs
+        obs_dim = _OBS_DIM
+        policy_kwargs = {}
+    else:
+        from policy.dqn_cnn_policy import _preprocess_obs as preprocess_fn, _OBS_DIM as obs_dim
+        from policy.dqn_cnn_policy import LiDARCNNExtractor
+        policy_kwargs = {
+            "features_extractor_class": LiDARCNNExtractor,
+            "features_extractor_kwargs": {"features_dim": 256},
+        }
+
     # Build the wrapped env
-    env = MultiAgentSharedPolicyWrapper(scenario=args.scenario, render_mode=args.render_mode, reset_mode=args.reset_mode)
+    env = MultiAgentSharedPolicyWrapper(
+        scenario=args.scenario,
+        render_mode=args.render_mode,
+        reset_mode=args.reset_mode,
+        preprocess_fn=preprocess_fn,
+        obs_dim=obs_dim,
+    )
 
     # Checkpoint callback: save every (total_timesteps // 10) steps
     checkpoint_freq = max(1, args.total_timesteps // 10)
@@ -186,6 +220,7 @@ def main():
         exploration_final_eps=args.exploration_final_eps,
         verbose=1,
         tensorboard_log=log_path,
+        **({"policy_kwargs": policy_kwargs} if policy_kwargs else {}),
     )
 
     # Train

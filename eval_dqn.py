@@ -19,7 +19,7 @@ import gymnasium
 import numpy as np
 
 import racecar_gym.envs.gym_api  # registers gymnasium env IDs
-from policy.dqn_policy import DQNPolicy
+from policy.dqn_mlp_policy import DQNPolicy
 
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -27,6 +27,12 @@ from policy.dqn_policy import DQNPolicy
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Evaluate a trained DQN model on racecar_gym (2-agent Austria)"
+    )
+    parser.add_argument(
+        "--policy",
+        choices=["mlp", "cnn"],
+        default="mlp",
+        help="Policy type: mlp or cnn (default: mlp)",
     )
     parser.add_argument(
         "--model_path",
@@ -75,7 +81,11 @@ def main():
     agent_ids = list(env.observation_space.spaces.keys())
 
     # Load the trained DQN policy (obs preprocessing and action decoding are encapsulated)
-    policy = DQNPolicy(model_path=args.model_path)
+    if args.policy == "mlp":
+        policy = DQNPolicy(model_path=args.model_path)
+    else:
+        from policy.dqn_cnn_policy import DQNCNNPolicy
+        policy = DQNCNNPolicy(model_path=args.model_path)
     print(f"[eval_dqn] Loaded model from {args.model_path}")
     print(f"[eval_dqn] Evaluating {args.episodes} episode(s) on {args.scenario}\n")
 
