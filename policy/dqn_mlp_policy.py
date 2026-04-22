@@ -38,11 +38,10 @@ _ACTION_TABLE = np.array(
 )  # shape: (4, 2)  — columns: [motor, steering]
 
 # ── Observation preprocessing ──────────────────────────────────────────────────
-# LiDAR: 1080 rays → 216 rays (every 5th ray, same angular coverage)
-_LIDAR_STRIDE = 5
-_LIDAR_OUT = 1080 // _LIDAR_STRIDE  # 216
+# LiDAR: 1080 rays 
+_LIDAR_OUT = 1080 
 
-_OBS_DIM = _LIDAR_OUT + 6  # 222: lidar(216) + velocity(6)
+_OBS_DIM = _LIDAR_OUT + 6  # 1086: lidar(1080) + velocity(6)
 
 # ── Normalization constants ────────────────────────────────────────────────────
 # LiDAR: sensor range [0.25, 15.0] m  (racecar.yml: min_range=0.25, range=15.0)
@@ -57,8 +56,8 @@ _VEL_ANGULAR_MAX = np.float32(6.0)        # rad/s (upper bound for angular rates
 def _preprocess_obs(obs: Dict[str, np.ndarray]) -> np.ndarray:
     """Flatten and normalise sensor observations into a 1-D numpy array in [-1, 1].
 
-    Observation layout (222 dims total):
-      [0:_LIDAR_OUT]    lidar, downsampled (stride=5), normalised to [-1, 1]
+    Observation layout (1086 dims):
+      [0:_LIDAR_OUT]    lidar, normalised to [-1, 1]
                         min_range=0.25 m → -1,  max_range=15.0 m → +1
       [_LIDAR_OUT: _LIDAR_OUT+3]  linear velocity (vx, vy, vz), body-frame, normalised to [-1,1]
       [_LIDAR_OUT+3: _LIDAR_OUT+6] angular velocity (wx, wy, wz), body-frame, normalised to [-1,1]
@@ -69,7 +68,7 @@ def _preprocess_obs(obs: Dict[str, np.ndarray]) -> np.ndarray:
     """
     # LiDAR: clip to [min_range, max_range] → min-max → [-1, 1]
     lidar_raw = np.clip(
-        obs["lidar"][::_LIDAR_STRIDE], _LIDAR_MIN, _LIDAR_MIN + _LIDAR_RANGE
+        obs["lidar"], _LIDAR_MIN, _LIDAR_MIN + _LIDAR_RANGE
     ).astype(np.float32)
     lidar = (lidar_raw - _LIDAR_MIN) / _LIDAR_RANGE * 2.0 - 1.0
 
