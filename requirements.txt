@@ -19,3 +19,11 @@ opencv-python>=4.8
 # ─── 유틸리티 ──────────────────────────────────────────────────────────────────
 tqdm>=4.65
 matplotlib>=3.5
+
+# ─── 강화학습 ─────────────────────────────────────────────────────────────────
+stable-baselines3[extra]>=2.0
+# numpy constraints:
+#   >= 1.22.4  required by pandas 2.x (pulled in by SB3[extra])
+#   <  1.24    required by nptyping<2.0 and racecar_gym/bullet/util.py (use np.float)
+numpy==1.23.5
+
