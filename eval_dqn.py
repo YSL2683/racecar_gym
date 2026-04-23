@@ -30,9 +30,9 @@ def parse_args():
     )
     parser.add_argument(
         "--policy",
-        choices=["mlp", "cnn"],
+        choices=["mlp", "mlp_stack"],
         default="mlp",
-        help="Policy type: mlp or cnn (default: mlp)",
+        help="Policy type: mlp or mlp_stack (default: mlp)",
     )
     parser.add_argument(
         "--model_path",
@@ -80,14 +80,23 @@ def main():
     )
     agent_ids = list(env.observation_space.spaces.keys())
 
-    # Load the trained DQN policy (obs preprocessing and action decoding are encapsulated)
+    # Load the trained DQN policy (obs preprocessing and action decoding are encapsulated).
+    # mlp_stack: create one policy instance per agent to keep frame buffers separate.
     if args.policy == "mlp":
         policy = DQNPolicy(model_path=args.model_path)
-    else:
-        from policy.dqn_cnn_policy import DQNCNNPolicy
-        policy = DQNCNNPolicy(model_path=args.model_path)
+        policies = None  # will use single shared policy
+    else:  # mlp_stack
+        from policy.dqn_mlp_stack_policy import DQNStackPolicy
+        # Delay agent_ids resolution until after env is created (already done above)
+        policies = {aid: DQNStackPolicy(model_path=args.model_path) for aid in agent_ids}
+        policy = None
     print(f"[eval_dqn] Loaded model from {args.model_path}")
     print(f"[eval_dqn] Evaluating {args.episodes} episode(s) on {args.scenario}\n")
+
+    def _get_action(aid, obs):
+        if policies is not None:
+            return policies[aid].act(obs)
+        return policy.act(obs)
 
     # ── Episode loop ──────────────────────────────────────────────────────────
     ep_returns = []
@@ -95,6 +104,10 @@ def main():
     ep_laps = []
 
     for ep in range(1, args.episodes + 1):
+        # Reset per-agent frame buffers before each episode
+        if policies is not None:
+            for p in policies.values():
+                p.reset()
         obs_dict, _ = env.reset(options={"mode": args.reset_mode})
 
         done = False
@@ -103,7 +116,7 @@ def main():
 
         while not done:
             # Apply the shared DQN policy to every agent independently
-            multi_action = {aid: policy.act(obs_dict[aid]) for aid in agent_ids}
+            multi_action = {aid: _get_action(aid, obs_dict[aid]) for aid in agent_ids}
 
             obs_dict, reward_dict, terminated_dict, truncated_dict, info_dict = (
                 env.step(multi_action)
