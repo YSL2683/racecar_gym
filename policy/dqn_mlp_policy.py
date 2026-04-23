@@ -38,11 +38,10 @@ _ACTION_TABLE = np.array(
 )  # shape: (4, 2)  — columns: [motor, steering]
 
 # ── Observation preprocessing ──────────────────────────────────────────────────
-# LiDAR: 1080 rays → 216 rays (every 5th ray, same angular coverage)
-_LIDAR_STRIDE = 5
-_LIDAR_OUT = 1080 // _LIDAR_STRIDE  # 216
+# LiDAR: 1080 rays 
+_LIDAR_OUT = 1080 
 
-_OBS_DIM = _LIDAR_OUT + 6  # 222: lidar(216) + velocity(6)
+_OBS_DIM = _LIDAR_OUT + 6 + 6 # 1086: lidar(1080) + velocity(6) + acceleration(6)
 
 # ── Normalization constants ────────────────────────────────────────────────────
 # LiDAR: sensor range [0.25, 15.0] m  (racecar.yml: min_range=0.25, range=15.0)
@@ -53,12 +52,16 @@ _LIDAR_RANGE = np.float32(15.0 - 0.25)   # 14.75 → mapped to [-1, 1]
 _VEL_LINEAR_MAX = np.float32(14.0)        # m/s
 _VEL_ANGULAR_MAX = np.float32(6.0)        # rad/s (upper bound for angular rates)
 
+# Acceleration: from racecar.yml max_linear_acceleration
+_ACCEL_LINEAR_MAX = np.float32(10.0)       # m/s²
+_ACCEL_ANGULAR_MAX = np.float32(30.0)      # rad/s²
+
 
 def _preprocess_obs(obs: Dict[str, np.ndarray]) -> np.ndarray:
     """Flatten and normalise sensor observations into a 1-D numpy array in [-1, 1].
 
-    Observation layout (222 dims total):
-      [0:_LIDAR_OUT]    lidar, downsampled (stride=5), normalised to [-1, 1]
+    Observation layout (1086 dims):
+      [0:_LIDAR_OUT]    lidar, normalised to [-1, 1]
                         min_range=0.25 m → -1,  max_range=15.0 m → +1
       [_LIDAR_OUT: _LIDAR_OUT+3]  linear velocity (vx, vy, vz), body-frame, normalised to [-1,1]
       [_LIDAR_OUT+3: _LIDAR_OUT+6] angular velocity (wx, wy, wz), body-frame, normalised to [-1,1]
@@ -69,7 +72,7 @@ def _preprocess_obs(obs: Dict[str, np.ndarray]) -> np.ndarray:
     """
     # LiDAR: clip to [min_range, max_range] → min-max → [-1, 1]
     lidar_raw = np.clip(
-        obs["lidar"][::_LIDAR_STRIDE], _LIDAR_MIN, _LIDAR_MIN + _LIDAR_RANGE
+        obs["lidar"], _LIDAR_MIN, _LIDAR_MIN + _LIDAR_RANGE
     ).astype(np.float32)
     lidar = (lidar_raw - _LIDAR_MIN) / _LIDAR_RANGE * 2.0 - 1.0
 
@@ -80,12 +83,22 @@ def _preprocess_obs(obs: Dict[str, np.ndarray]) -> np.ndarray:
     # Angular components
     angular = np.clip(vel_raw[3:6], -_VEL_ANGULAR_MAX, _VEL_ANGULAR_MAX) / _VEL_ANGULAR_MAX
 
+    # Acceleration: body-frame linear (3) + angular (3)
+    accel_raw = np.asarray(obs.get("acceleration", np.zeros(6)), dtype=np.float32).reshape(-1)
+    # Linear components
+    accel_linear = np.clip(accel_raw[:3], -_ACCEL_LINEAR_MAX, _ACCEL_LINEAR_MAX) / _ACCEL_LINEAR_MAX
+    # Angular components    
+    accel_angular = np.clip(accel_raw[3:6], -_ACCEL_ANGULAR_MAX, _ACCEL_ANGULAR_MAX) / _ACCEL_ANGULAR_MAX
+
     linear = linear.astype(np.float32)
     angular = angular.astype(np.float32)
+    accel_linear = accel_linear.astype(np.float32)
+    accel_angular = accel_angular.astype(np.float32)
 
     vel_norm = np.concatenate([linear, angular])  # shape (6,)
+    accel_norm = np.concatenate([accel_linear, accel_angular])  # shape (6,)
 
-    return np.concatenate([lidar, vel_norm])
+    return np.concatenate([lidar, vel_norm, accel_norm]) # shape (1092,)
 
 
 def _discrete_to_action(action_idx: int) -> Dict[str, np.ndarray]:
