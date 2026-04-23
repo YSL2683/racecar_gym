@@ -137,6 +137,9 @@ def parse_args():
         "--policy", choices=["mlp", "mlp_stack"], default="mlp",
         help="Policy type: mlp (MLP + downsampled lidar) or mlp_stack (MLP + 4-frame stacked full lidar) "
              "(default: mlp)")
+    parser.add_argument(
+        "--lidar_stack_frames", type=int, default=4,
+        help="Number of LiDAR frames to stack for mlp_stack policy (default: 4)")
 
     # ── Paths ──
     parser.add_argument(
@@ -209,15 +212,15 @@ def main():
         lidar_dim = 0
     else:  # mlp_stack
         from policy.dqn_mlp_stack_policy import (
-            _preprocess_single_obs, _OBS_DIM, _LIDAR_DIM, LiDARStackMLPExtractor,
+            _preprocess_single_obs, _LIDAR_DIM, _STATE_DIM, LiDARStackMLPExtractor, _DEFAULT_STACK_FRAMES
         )
         preprocess_fn = _preprocess_single_obs
-        obs_dim = _OBS_DIM
+        lidar_stack_frames = args.lidar_stack_frames
+        obs_dim = lidar_stack_frames * _LIDAR_DIM + _STATE_DIM
         policy_kwargs = {
             "features_extractor_class": LiDARStackMLPExtractor,
-            "features_extractor_kwargs": {"features_dim": 320},
+            "features_extractor_kwargs": {"features_dim": 320, "stack_frames": lidar_stack_frames},
         }
-        lidar_stack_frames = 4
         lidar_dim = _LIDAR_DIM
 
     # Build the wrapped env

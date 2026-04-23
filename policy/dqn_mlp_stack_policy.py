@@ -55,10 +55,11 @@ _ACTION_TABLE = np.array(
 )  # shape: (4, 2) — columns: [motor, steering]
 
 # ── Observation constants ──────────────────────────────────────────────────────
-_STACK_FRAMES = 4
+_DEFAULT_STACK_FRAMES = 4
 _LIDAR_DIM    = 1080
 _STATE_DIM    = 12     # vel(6) + acc(6)
-_OBS_DIM      = _STACK_FRAMES * _LIDAR_DIM + _STATE_DIM  # 4332
+# Default obs dim (for legacy references); actual obs_dim used at runtime is computed from stack_frames
+_OBS_DIM      = _DEFAULT_STACK_FRAMES * _LIDAR_DIM + _STATE_DIM  # default 4332
 
 # ── Normalisation constants ────────────────────────────────────────────────────
 _LIDAR_MIN   = np.float32(0.25)
@@ -122,20 +123,21 @@ def _discrete_to_action(action_idx: int) -> Dict[str, np.ndarray]:
 class LiDARStackMLPExtractor(BaseFeaturesExtractor):
     """SB3 feature extractor: dual MLP branches for stacked LiDAR and state.
 
-    Input layout  (4332 dims):
-      [0    : 4320]  stacked LiDAR  (4 × 1080)
-      [4320 : 4332]  state          (vel 6 + acc 6)
+    Input layout depends on stack_frames:
+      [0    : stack_frames*LIDAR_DIM]  stacked LiDAR
+      [..   : ..]  state          (vel 6 + acc 6)
 
     Architecture:
-      LiDAR branch : 4320 → Linear(512) → ReLU → Linear(256) → ReLU
+      LiDAR branch : (stack_frames*1080) → Linear(512) → ReLU → Linear(256) → ReLU
       State branch :   12 → Linear(64)  → ReLU
-      Merge        :  320 → output features (no compression)
+      Merge        :  concat → output features (no compression)
     """
 
-    def __init__(self, observation_space: gym.Space, features_dim: int = 320):
+    def __init__(self, observation_space: gym.Space, features_dim: int = 320, stack_frames: int = _DEFAULT_STACK_FRAMES):
         super().__init__(observation_space, features_dim)
-        self._lidar_stack_dim = _STACK_FRAMES * _LIDAR_DIM  # 4320
-        self._state_dim       = _STATE_DIM                  # 12
+        self._stack_frames = int(stack_frames)
+        self._lidar_stack_dim = self._stack_frames * _LIDAR_DIM
+        self._state_dim = _STATE_DIM
 
         self._lidar_branch = nn.Sequential(
             nn.Linear(self._lidar_stack_dim, 512),
@@ -152,8 +154,8 @@ class LiDARStackMLPExtractor(BaseFeaturesExtractor):
         self._merge = nn.Identity()
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
-        lidar_stack = observations[:, : self._lidar_stack_dim]   # (B, 4320)
-        state       = observations[:, self._lidar_stack_dim :]   # (B, 12)
+        lidar_stack = observations[:, : self._lidar_stack_dim]
+        state = observations[:, self._lidar_stack_dim :]
 
         lidar_feat = self._lidar_branch(lidar_stack)
         state_feat = self._state_branch(state)
@@ -166,16 +168,19 @@ class LiDARStackMLPExtractor(BaseFeaturesExtractor):
 class DQNStackPolicy(Policy):
     """Wraps a trained SB3 DQN model (with LiDARStackMLPExtractor) for inference.
 
-    Maintains a per-instance LiDAR frame buffer (deque of length _STACK_FRAMES).
+    Maintains a per-instance LiDAR frame buffer (deque of length stack_frames).
     Call ``reset()`` at the start of every episode to clear the buffer.
 
     Args:
         model_path: Path to the SB3 DQN .zip checkpoint.
                     Falls back to env var DQN_STACK_MODEL_PATH, then
                     'checkpoints/dqn_stack/final_model.zip'.
+        stack_frames: Optional override for the LiDAR stacking length. If not
+                      provided, the extractor's internal _stack_frames is inspected
+                      (or a default is used).
     """
 
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None, stack_frames: Optional[int] = None):
         from stable_baselines3 import DQN
 
         if model_path is None:
@@ -183,11 +188,17 @@ class DQNStackPolicy(Policy):
                 "DQN_STACK_MODEL_PATH",
                 os.path.join("checkpoints", "dqn_stack", "final_model.zip"),
             )
-        self._model = DQN.load(
-            model_path,
-            custom_objects={"features_extractor_class": LiDARStackMLPExtractor},
-        )
+        # Let SB3 restore the features_extractor from the saved policy kwargs
+        self._model = DQN.load(model_path)
         self._model.policy.set_training_mode(False)
+
+        # Determine stack_frames: explicit override > extractor property > default
+        if stack_frames is not None:
+            self._stack_frames = int(stack_frames)
+        else:
+            fe = getattr(self._model.policy, "features_extractor", None)
+            self._stack_frames = int(getattr(fe, "_stack_frames", _DEFAULT_STACK_FRAMES))
+
         self._lidar_buffer: Optional[deque] = None
 
     def reset(self) -> None:
@@ -211,8 +222,8 @@ class DQNStackPolicy(Policy):
         if self._lidar_buffer is None:
             # Initialise by repeating the first frame
             self._lidar_buffer = deque(
-                [lidar.copy() for _ in range(_STACK_FRAMES)],
-                maxlen=_STACK_FRAMES,
+                [lidar.copy() for _ in range(self._stack_frames)],
+                maxlen=self._stack_frames,
             )
         else:
             self._lidar_buffer.append(lidar.copy())

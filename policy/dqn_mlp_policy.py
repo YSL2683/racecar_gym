@@ -21,21 +21,36 @@ import numpy as np
 from policy.base_policy import Policy
 
 # ── Discrete action table ──────────────────────────────────────────────────────
-# 4 actions: motor ∈ {-1, +1}  ×  steering ∈ {-1, 0, +1} (motor -1 for only break {-1, 0})
+# 4 actions: motor ∈ {-1, 0, +1}  ×  steering ∈ {-1, -0.5, 0, 0.5, +1}  (motor -1 only has steering 0)
 # Index layout:
 #   1: motor=-1, steering= 0   (reverse + straight)
-#   2: motor=+1, steering=-1   (forward + left)
-#   3: motor=+1, steering= 0   (forward + straight)
-#   4: motor=+1, steering=+1   (forward + right)
+#   2: motor= 0, steering=-1   (forward + left)
+#   3: motor= 0, steering= -0.5   (forward + straight)
+#   3: motor= 0, steering= 0   (forward + straight)
+#   4: motor= 0, steering=+0.5   (forward + right)
+#   5: motor= 0, steering=+1   (forward + right)
+#   6: motor=+1, steering=-1   (forward + left)
+#   7: motor=+1, steering= -0.5   (forward + straight)
+#   8: motor=+1, steering= 0   (forward + straight)
+#   9: motor=+1, steering=+0.5   (forward + right)
+#  10: motor=+1, steering=+1   (forward + right)    
+
 _ACTION_TABLE = np.array(
     [
-        [-1.0,  0.0],   # 1
-        [ 1.0, -1.0],   # 2
-        [ 1.0,  0.0],   # 3
-        [ 1.0,  1.0],   # 4
+        [-1.0,  0.0],   # 0  reverse + straight
+        [ 0.0, -1.0],   # 1  forward + left
+        [ 0.0,  0.5],   # 2  forward + right
+        [ 0.0,  0.0],   # 3  forward + straight
+        [ 0.0,  0.5],   # 4  forward + right
+        [ 0.0,  1.0],   # 5  forward + right
+        [ 1.0, -1.0],   # 6  forward + left
+        [ 1.0,  -0.5],   # 7  forward + straight
+        [ 1.0,  0.0],   # 8  forward + straight
+        [ 1.0,  0.5],   # 9  forward + right
+        [ 1.0,  1.0],   # 10  forward + right    
     ],
     dtype=np.float32,
-)  # shape: (4, 2)  — columns: [motor, steering]
+)  # shape: (11, 2)  — columns: [motor, steering]
 
 # ── Observation preprocessing ──────────────────────────────────────────────────
 # LiDAR: 1080 rays 
